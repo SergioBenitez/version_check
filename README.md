@@ -58,3 +58,7 @@ match version_check::is_min_date("2016-12-18") {
 This crate is dead simple with no dependencies. If you need something more and
 don't care about panicking if the version cannot be obtained or adding
 dependencies, see [rustc_version](https://crates.io/crates/rustc_version).
+
+## License
+
+MIT. Have fun!

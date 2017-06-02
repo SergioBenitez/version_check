@@ -65,15 +65,17 @@ fn str_to_ymd(ymd: &str) -> Option<u32> {
 // Convert a string with prefix major-minor-patch to a single u64 maintaining
 // ordering. Assumes none of the components are > 1048576.
 fn str_to_mmp(mmp: &str) -> Option<u64> {
-    let mmp: Vec<u16> = mmp.split('-')
+    let mut mmp: Vec<u16> = mmp.split('-')
         .nth(0)
         .unwrap_or("")
         .split('.')
         .filter_map(|s| s.parse::<u16>().ok())
         .collect();
 
-    if mmp.len() != 3 {
-        return None
+    if mmp.len() == 2 {
+        mmp.push(0);
+    } else if mmp.len() != 3 {
+        return None;
     }
 
     let (maj, min, patch) = (mmp[0] as u64, mmp[1] as u64, mmp[2] as u64);
@@ -121,8 +123,8 @@ pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
 /// Checks that the running or installed `rustc` is at least some minimum
 /// version.
 ///
-/// The format of `min_version` is a semantic version: `1.15.0-beta`, `1.14.0`,
-/// `1.16.0-nightly`, etc.
+/// The format of `min_version` is a semantic version: `1.3.0`, `1.15.0-beta`,
+/// `1.14.0`, `1.16.0-nightly`, etc.
 ///
 /// If the version cannot be retrieved or parsed, or if `min_version` could not
 /// be parsed, returns `None`. Otherwise returns a tuple where the first value
@@ -157,4 +159,14 @@ pub fn is_nightly() -> Option<bool> {
 pub fn is_beta() -> Option<bool> {
     get_version_and_date()
         .map(|(actual_version_str, _)| actual_version_str.contains("beta"))
+}
+
+/// Determines whether the running or installed `rustc` is on the dev channel.
+///
+/// If the version could not be determined, returns `None`. Otherwise returns
+/// `Some(true)` if the running version is a dev release, and `Some(false)`
+/// otherwise.
+pub fn is_dev() -> Option<bool> {
+    get_version_and_date()
+        .map(|(actual_version_str, _)| actual_version_str.contains("dev"))
 }

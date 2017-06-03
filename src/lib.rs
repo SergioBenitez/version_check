@@ -170,3 +170,16 @@ pub fn is_dev() -> Option<bool> {
     get_version_and_date()
         .map(|(actual_version_str, _)| actual_version_str.contains("dev"))
 }
+
+/// Determines whether the running or installed `rustc` supports feature flags.
+/// In other words, if the channel is either "nightly" or "dev".
+///
+/// If the version could not be determined, returns `None`. Otherwise returns
+/// `Some(true)` if the running version supports features, and `Some(false)`
+/// otherwise.
+pub fn supports_features() -> Option<bool> {
+    match is_nightly() {
+        b@Some(true) => b,
+        _ => is_dev()
+    }
+}

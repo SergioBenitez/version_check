@@ -8,10 +8,10 @@ determination is made, and calls return `None`.
 
 ## Usage
 
-Add to your `Cargo.toml` file:
+Add to your `Cargo.toml` file, typically as a build dependency:
 
 ```toml
-[dependencies]
+[build-dependencies]
 version_check = "0.1"
 ```
 

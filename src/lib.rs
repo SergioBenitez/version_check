@@ -72,32 +72,33 @@ fn str_to_mmp(mmp: &str) -> Option<u64> {
         .filter_map(|s| s.parse::<u16>().ok())
         .collect();
 
-    if mmp.len() == 2 {
+    if mmp.is_empty() {
+        return None
+    }
+
+    while mmp.len() < 3 {
         mmp.push(0);
-    } else if mmp.len() != 3 {
-        return None;
     }
 
     let (maj, min, patch) = (mmp[0] as u64, mmp[1] as u64, mmp[2] as u64);
     Some((maj << 32) | (min << 16) | patch)
 }
 
-fn get_version_and_date() -> Option<(String, String)> {
-    let output = env::var("RUSTC").ok()
+/// Returns (version, date) as available.
+fn version_and_date_from_rustc_version(s: &str) -> (Option<String>, Option<String>) {
+    let mut components = s.split(" ");
+    let version = components.nth(1);
+    let date = components.nth(1).map(|s| s.trim_right().trim_right_matches(")"));
+    (version.map(|s| s.to_string()), date.map(|s| s.to_string()))
+}
+
+/// Returns (version, date) as available.
+fn get_version_and_date() -> Option<(Option<String>, Option<String>)> {
+    env::var("RUSTC").ok()
         .and_then(|rustc| Command::new(rustc).arg("--version").output().ok())
         .or_else(|| Command::new("rustc").arg("--version").output().ok())
         .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|s| {
-            let mut components = s.split(" ");
-            let version = components.nth(1);
-            let date = components.nth(1).map(|s| s.trim_right().trim_right_matches(")"));
-            (version.map(|s| s.to_string()), date.map(|s| s.to_string()))
-        });
-
-    match output {
-        Some((Some(version), Some(date))) => Some((version, date)),
-        _ => None
-    }
+        .map(|s| version_and_date_from_rustc_version(&s))
 }
 
 /// Checks that the running or installed `rustc` was released no earlier than
@@ -111,7 +112,7 @@ fn get_version_and_date() -> Option<(String, String)> {
 /// `true` if the installed `rustc` is at least from `min_data` and the second
 /// value is the date (in YYYY-MM-DD) of the installed `rustc`.
 pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
-    if let Some((_, actual_date_str)) = get_version_and_date() {
+    if let Some((_, Some(actual_date_str))) = get_version_and_date() {
         str_to_ymd(&actual_date_str)
             .and_then(|actual| str_to_ymd(min_date).map(|min| (min, actual)))
             .map(|(min, actual)| (actual >= min, actual_date_str))
@@ -131,13 +132,19 @@ pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
 /// is `true` if the installed `rustc` is at least `min_version` and the second
 /// value is the version (semantic) of the installed `rustc`.
 pub fn is_min_version(min_version: &str) -> Option<(bool, String)> {
-    if let Some((actual_version_str, _)) = get_version_and_date() {
+    if let Some((Some(actual_version_str), _)) = get_version_and_date() {
         str_to_mmp(&actual_version_str)
             .and_then(|actual| str_to_mmp(min_version).map(|min| (min, actual)))
             .map(|(min, actual)| (actual >= min, actual_version_str))
     } else {
         None
     }
+}
+
+fn version_channel_is(channel: &str) -> Option<bool> {
+    get_version_and_date()
+        .and_then(|(version_str_opt, _)|  version_str_opt)
+        .map(|version_str| version_str.contains(channel))
 }
 
 /// Determines whether the running or installed `rustc` is on the nightly
@@ -147,8 +154,7 @@ pub fn is_min_version(min_version: &str) -> Option<(bool, String)> {
 /// `Some(true)` if the running version is a nightly release, and `Some(false)`
 /// otherwise.
 pub fn is_nightly() -> Option<bool> {
-    get_version_and_date()
-        .map(|(actual_version_str, _)| actual_version_str.contains("nightly"))
+    version_channel_is("nightly")
 }
 
 /// Determines whether the running or installed `rustc` is on the beta channel.
@@ -157,8 +163,7 @@ pub fn is_nightly() -> Option<bool> {
 /// `Some(true)` if the running version is a beta release, and `Some(false)`
 /// otherwise.
 pub fn is_beta() -> Option<bool> {
-    get_version_and_date()
-        .map(|(actual_version_str, _)| actual_version_str.contains("beta"))
+    version_channel_is("beta")
 }
 
 /// Determines whether the running or installed `rustc` is on the dev channel.
@@ -167,8 +172,7 @@ pub fn is_beta() -> Option<bool> {
 /// `Some(true)` if the running version is a dev release, and `Some(false)`
 /// otherwise.
 pub fn is_dev() -> Option<bool> {
-    get_version_and_date()
-        .map(|(actual_version_str, _)| actual_version_str.contains("dev"))
+    version_channel_is("dev")
 }
 
 /// Determines whether the running or installed `rustc` supports feature flags.
@@ -181,5 +185,62 @@ pub fn supports_features() -> Option<bool> {
     match is_nightly() {
         b@Some(true) => b,
         _ => is_dev()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::version_and_date_from_rustc_version;
+    use super::str_to_mmp;
+
+    macro_rules! check_mmp {
+        ($string:expr => ($x:expr, $y:expr, $z:expr)) => (
+            if let Some(mmp) = str_to_mmp($string) {
+                let expected = $x << 32 | $y << 16 | $z;
+                if mmp != expected {
+                    panic!("{} didn't parse as {}.{}.{}.", $string, $x, $y, $z);
+                }
+            } else {
+                panic!("{} didn't parse for mmp testing.", $string);
+            }
+        )
+    }
+
+    macro_rules! check_version {
+        ($s:expr => ($x:expr, $y:expr, $z:expr)) => (
+            if let (Some(version_str), _) = version_and_date_from_rustc_version($s) {
+                check_mmp!(&version_str => ($x, $y, $z));
+            } else {
+                panic!("{} didn't parse for version testing.", $s);
+            }
+        )
+    }
+
+    #[test]
+    fn test_str_to_mmp() {
+        check_mmp!("1.18.0" => (1, 18, 0));
+        check_mmp!("1.19.0" => (1, 19, 0));
+        check_mmp!("1.19.0-nightly" => (1, 19, 0));
+        check_mmp!("1.12.2349" => (1, 12, 2349));
+        check_mmp!("0.12" => (0, 12, 0));
+        check_mmp!("1.12.5" => (1, 12, 5));
+        check_mmp!("1.12" => (1, 12, 0));
+        check_mmp!("1" => (1, 0, 0));
+    }
+
+    #[test]
+    fn test_version_parse() {
+        check_version!("rustc 1.18.0" => (1, 18, 0));
+        check_version!("rustc 1.8.0" => (1, 8, 0));
+        check_version!("rustc 1.20.0-nightly" => (1, 20, 0));
+        check_version!("rustc 1.20" => (1, 20, 0));
+        check_version!("rustc 1.3" => (1, 3, 0));
+        check_version!("rustc 1" => (1, 0, 0));
+        check_version!("rustc 1.2.5.6" => (1, 2, 5));
+        check_version!("rustc 1.5.1-beta" => (1, 5, 1));
+        check_version!("rustc 1.20.0-nightly (d84693b93 2017-07-09)" => (1, 20, 0));
+        check_version!("rustc 1.20.0 (d84693b93 2017-07-09)" => (1, 20, 0));
+        check_version!("rustc 1.20.0 (2017-07-09)" => (1, 20, 0));
+        check_version!("rustc 1.20.0-dev (2017-07-09)" => (1, 20, 0));
     }
 }

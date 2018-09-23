@@ -86,7 +86,8 @@ fn str_to_mmp(mmp: &str) -> Option<u64> {
 
 /// Returns (version, date) as available.
 fn version_and_date_from_rustc_version(s: &str) -> (Option<String>, Option<String>) {
-    let mut components = s.split(" ");
+    let last_line = s.lines().last().unwrap_or(s);
+    let mut components = last_line.trim().split(" ");
     let version = components.nth(1);
     let date = components.nth(1).map(|s| s.trim_right().trim_right_matches(")"));
     (version.map(|s| s.to_string()), date.map(|s| s.to_string()))
@@ -198,10 +199,10 @@ mod tests {
             if let Some(mmp) = str_to_mmp($string) {
                 let expected = $x << 32 | $y << 16 | $z;
                 if mmp != expected {
-                    panic!("{} didn't parse as {}.{}.{}.", $string, $x, $y, $z);
+                    panic!("{:?} didn't parse as {}.{}.{}.", $string, $x, $y, $z);
                 }
             } else {
-                panic!("{} didn't parse for mmp testing.", $string);
+                panic!("{:?} didn't parse for mmp testing.", $string);
             }
         )
     }
@@ -211,7 +212,7 @@ mod tests {
             if let (Some(version_str), _) = version_and_date_from_rustc_version($s) {
                 check_mmp!(&version_str => ($x, $y, $z));
             } else {
-                panic!("{} didn't parse for version testing.", $s);
+                panic!("{:?} didn't parse for version testing.", $s);
             }
         )
     }
@@ -242,5 +243,13 @@ mod tests {
         check_version!("rustc 1.20.0 (d84693b93 2017-07-09)" => (1, 20, 0));
         check_version!("rustc 1.20.0 (2017-07-09)" => (1, 20, 0));
         check_version!("rustc 1.20.0-dev (2017-07-09)" => (1, 20, 0));
+
+        check_version!("warning: invalid logging spec 'warning', ignoring it
+                        rustc 1.30.0-nightly (3bc2ca7e4 2018-09-20)" => (1, 30, 0));
+        check_version!("warning: invalid logging spec 'warning', ignoring it\n
+                        rustc 1.30.0-nightly (3bc2ca7e4 2018-09-20)" => (1, 30, 0));
+        check_version!("warning: invalid logging spec 'warning', ignoring it
+                        warning: something else went wrong
+                        rustc 1.30.0-nightly (3bc2ca7e4 2018-09-20)" => (1, 30, 0));
     }
 }

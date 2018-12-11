@@ -93,15 +93,6 @@ fn version_and_date_from_rustc_version(s: &str) -> (Option<String>, Option<Strin
     (version.map(|s| s.to_string()), date.map(|s| s.to_string()))
 }
 
-/// Returns (version, date) as available.
-fn get_version_and_date() -> Option<(Option<String>, Option<String>)> {
-    env::var("RUSTC").ok()
-        .and_then(|rustc| Command::new(rustc).arg("--version").output().ok())
-        .or_else(|| Command::new("rustc").arg("--version").output().ok())
-        .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|s| version_and_date_from_rustc_version(&s))
-}
-
 /// Checks that the running or installed `rustc` was released no earlier than
 /// some date.
 ///
@@ -110,16 +101,12 @@ fn get_version_and_date() -> Option<(Option<String>, Option<String>)> {
 ///
 /// If the date cannot be retrieved or parsed, or if `min_date` could not be
 /// parsed, returns `None`. Otherwise returns a tuple where the first value is
-/// `true` if the installed `rustc` is at least from `min_data` and the second
+/// `true` if the installed `rustc` is at least from `min_date` and the second
 /// value is the date (in YYYY-MM-DD) of the installed `rustc`.
 pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
-    if let Some((_, Some(actual_date_str))) = get_version_and_date() {
-        str_to_ymd(&actual_date_str)
-            .and_then(|actual| str_to_ymd(min_date).map(|min| (min, actual)))
-            .map(|(min, actual)| (actual >= min, actual_date_str))
-    } else {
-        None
-    }
+    Rustc::detect().and_then(|r| {
+        r.date.clone().map(|date| (r.is_min_date(min_date), date))
+    })
 }
 
 /// Checks that the running or installed `rustc` is at least some minimum
@@ -133,19 +120,9 @@ pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
 /// is `true` if the installed `rustc` is at least `min_version` and the second
 /// value is the version (semantic) of the installed `rustc`.
 pub fn is_min_version(min_version: &str) -> Option<(bool, String)> {
-    if let Some((Some(actual_version_str), _)) = get_version_and_date() {
-        str_to_mmp(&actual_version_str)
-            .and_then(|actual| str_to_mmp(min_version).map(|min| (min, actual)))
-            .map(|(min, actual)| (actual >= min, actual_version_str))
-    } else {
-        None
-    }
-}
-
-fn version_channel_is(channel: &str) -> Option<bool> {
-    get_version_and_date()
-        .and_then(|(version_str_opt, _)|  version_str_opt)
-        .map(|version_str| version_str.contains(channel))
+    Rustc::detect().and_then(|r| {
+        r.version.clone().map(|version| (r.is_min_version(min_version), version))
+    })
 }
 
 /// Determines whether the running or installed `rustc` is on the nightly
@@ -155,7 +132,7 @@ fn version_channel_is(channel: &str) -> Option<bool> {
 /// `Some(true)` if the running version is a nightly release, and `Some(false)`
 /// otherwise.
 pub fn is_nightly() -> Option<bool> {
-    version_channel_is("nightly")
+    Rustc::detect().map(|r| r.is_nightly())
 }
 
 /// Determines whether the running or installed `rustc` is on the beta channel.
@@ -164,7 +141,7 @@ pub fn is_nightly() -> Option<bool> {
 /// `Some(true)` if the running version is a beta release, and `Some(false)`
 /// otherwise.
 pub fn is_beta() -> Option<bool> {
-    version_channel_is("beta")
+    Rustc::detect().map(|r| r.is_beta())
 }
 
 /// Determines whether the running or installed `rustc` is on the dev channel.
@@ -173,7 +150,7 @@ pub fn is_beta() -> Option<bool> {
 /// `Some(true)` if the running version is a dev release, and `Some(false)`
 /// otherwise.
 pub fn is_dev() -> Option<bool> {
-    version_channel_is("dev")
+    Rustc::detect().map(|r| r.is_dev())
 }
 
 /// Determines whether the running or installed `rustc` supports feature flags.
@@ -183,9 +160,79 @@ pub fn is_dev() -> Option<bool> {
 /// `Some(true)` if the running version supports features, and `Some(false)`
 /// otherwise.
 pub fn supports_features() -> Option<bool> {
-    match is_nightly() {
-        b@Some(true) => b,
-        _ => is_dev()
+    Rustc::detect().map(|r| r.supports_features())
+}
+
+/// A detected instance of `rustc`, internally containing version information.
+pub struct Rustc {
+    version: Option<String>,
+    date: Option<String>,
+}
+
+impl Rustc {
+    /// Execute `rustc --version`, detecting where rustc is installed as well as
+    /// its local version and date. The returned `Rustc`, if this succeeds, can
+    /// be used to query version information.
+    pub fn detect() -> Option<Rustc> {
+        env::var("RUSTC").ok()
+            .and_then(|rustc| Command::new(rustc).arg("--version").output().ok())
+            .or_else(|| Command::new("rustc").arg("--version").output().ok())
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+            .map(|s| version_and_date_from_rustc_version(&s))
+            .map(|(version, date)| Rustc { version: version, date: date })
+    }
+
+    /// Same as the crate `is_min_date` function
+    pub fn is_min_date(&self, min_date: &str) -> bool {
+        match self.date {
+            Some(ref str) => {
+                str_to_ymd(&str)
+                    .and_then(|actual| str_to_ymd(min_date).map(|min| (min, actual)))
+                    .map(|(min, actual)| actual >= min)
+                    .unwrap_or(false)
+            }
+            None => false,
+        }
+    }
+
+    /// Same as the crate `is_min_version` function
+    pub fn is_min_version(&self, min_version: &str) -> bool {
+        match self.version {
+            Some(ref version) => {
+                str_to_mmp(&version)
+                    .and_then(|actual| str_to_mmp(min_version).map(|min| (min, actual)))
+                    .map(|(min, actual)| actual >= min)
+                    .unwrap_or(false)
+            }
+            None => false,
+        }
+    }
+
+    fn version_channel_is(&self, channel: &str) -> bool {
+        match self.version {
+            Some(ref s) => s.contains(channel),
+            None => false,
+        }
+    }
+
+    /// Same as the crate `is_nightly` function
+    pub fn is_nightly(&self) -> bool {
+        self.version_channel_is("nightly")
+    }
+
+    /// Same as the crate `is_beta` function
+    pub fn is_beta(&self) -> bool {
+        self.version_channel_is("beta")
+    }
+
+    /// Same as the crate `is_dev` function
+    pub fn is_dev(&self) -> bool {
+        self.version_channel_is("dev")
+    }
+
+    /// Same as the crate `supports_features` function
+    pub fn supports_features(&self) -> bool {
+        self.is_nightly() || self.is_dev()
     }
 }
 

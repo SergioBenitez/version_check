@@ -110,7 +110,7 @@ fn get_version_and_date() -> Option<(Option<String>, Option<String>)> {
 ///
 /// If the date cannot be retrieved or parsed, or if `min_date` could not be
 /// parsed, returns `None`. Otherwise returns a tuple where the first value is
-/// `true` if the installed `rustc` is at least from `min_data` and the second
+/// `true` if the installed `rustc` is at least from `min_date` and the second
 /// value is the date (in YYYY-MM-DD) of the installed `rustc`.
 pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
     if let Some((_, Some(actual_date_str))) = get_version_and_date() {

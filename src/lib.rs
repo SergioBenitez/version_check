@@ -49,6 +49,7 @@
 //! dependencies, see [rustc_version](https://crates.io/crates/rustc_version).
 
 use std::env;
+use std::ops::{Bound, RangeBounds};
 use std::process::Command;
 
 // Convert a string of %Y-%m-%d to a single u32 maintaining ordering.
@@ -117,6 +118,38 @@ pub fn is_min_date(min_date: &str) -> Option<(bool, String)> {
         str_to_ymd(&actual_date_str)
             .and_then(|actual| str_to_ymd(min_date).map(|min| (min, actual)))
             .map(|(min, actual)| (actual >= min, actual_date_str))
+    } else {
+        None
+    }
+}
+
+/// Checks that the running or installed `rustc` was released within the
+/// specified date range.
+///
+/// The format of the dates must be YYYY-MM-DD. For instance:
+/// `"2016-12-20".."2017-01-05"` or `.."2019-01-01"`.
+///
+/// If the date cannot be retrieved or parsed, or if `date_range` could not be
+/// parsed, returns `None`. Otherwise returns a tuple where the first value is
+/// `true` if the installed `rustc` is within the date range and the second
+/// value is the date (in YYYY-MM-DD) of the installed `rustc`.
+pub fn is_date_in<R>(date_range: R) -> Option<(bool, String)>
+where
+    R: RangeBounds<&'static str>,
+{
+    if let Some((_, Some(actual_date_str))) = get_version_and_date() {
+        str_to_ymd(&actual_date_str).and_then(|actual| {
+            let in_range = match date_range.start_bound() {
+                Bound::Included(value) => actual <= str_to_ymd(&value)?,
+                Bound::Excluded(value) => actual < str_to_ymd(&value)?,
+                Bound::Unbounded => true,
+            } && match date_range.end_bound() {
+                Bound::Included(value) => actual >= str_to_ymd(&value)?,
+                Bound::Excluded(value) => actual > str_to_ymd(&value)?,
+                Bound::Unbounded => true,
+            };
+            Some((in_range, actual_date_str))
+        })
     } else {
         None
     }

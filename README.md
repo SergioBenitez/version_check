@@ -15,6 +15,8 @@ Add to your `Cargo.toml` file, typically as a build dependency:
 version_check = "0.1"
 ```
 
+`version_check` is compatible and compiles with Rust 1.0.0 and beyond.
+
 ## Examples
 
 Check that the running compiler is a nightly release:

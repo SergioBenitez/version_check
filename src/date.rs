@@ -1,6 +1,7 @@
 use std::fmt;
 
 /// Release date including year, month, and day.
+// Internal storage is: y[31..9] | m[8..5] | d[5...0].
 #[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord)]
 pub struct Date(u32);
 
@@ -25,11 +26,11 @@ impl Date {
     }
 
     /// Return the original (YYYY, MM, DD).
-    fn to_ymd(&self) -> (u8, u8, u8) {
+    fn to_ymd(&self) -> (u16, u8, u8) {
         let y = self.0 >> 9;
         let m = (self.0 << 23) >> 28;
         let d = (self.0 << 27) >> 27;
-        (y as u8, m as u8, d as u8)
+        (y as u16, m as u8, d as u8)
     }
 
     /// Parse a release date of the form `%Y-%m-%d`. Returns `None` if `date` is
@@ -59,7 +60,7 @@ impl Date {
         }
 
         let (y, m, d) = (ymd[0], ymd[1], ymd[2]);
-        Some(Date((y << 9) | (m << 5) | d))
+        Some(Date((y << 9) | ((m & 0xF) << 5) | (d & 0x1F)))
     }
 
     /// Returns `true` if `self` occurs on or after `date`.
@@ -141,6 +142,26 @@ impl Date {
 impl fmt::Display for Date {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (y, m, d) = self.to_ymd();
-        write!(f, "{}-{}-{}", y, m, d)
+        write!(f, "{}-{:02}-{:02}", y, m, d)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Date;
+
+    macro_rules! reflexive_display {
+        ($string:expr) => (
+            assert_eq!(Date::parse($string).unwrap().to_string(), $string);
+        )
+    }
+
+    #[test]
+    fn display() {
+        reflexive_display!("2019-05-08");
+        reflexive_display!("2000-01-01");
+        reflexive_display!("2000-12-31");
+        reflexive_display!("2090-12-31");
+        reflexive_display!("1999-02-19");
     }
 }

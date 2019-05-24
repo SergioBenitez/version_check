@@ -194,6 +194,8 @@ mod tests {
         let version = Version::parse("1.18.0").unwrap();
         assert!(version.exactly("1.18.0"));
         assert!(version.at_least("1.12.0"));
+        assert!(version.at_least("1.12"));
+        assert!(version.at_least("1"));
         assert!(version.at_most("1.18.1"));
         assert!(!version.exactly("1.19.0"));
         assert!(!version.exactly("1.18.1"));
@@ -218,4 +220,19 @@ mod tests {
         assert!(Version::parse("one.two.three").is_none());
     }
 
+    macro_rules! reflexive_display {
+        ($s:expr) => (
+            assert_eq!(Version::parse($s).unwrap().to_string(), $s);
+        )
+    }
+
+    #[test]
+    fn display() {
+        reflexive_display!("1.0.0");
+        reflexive_display!("1.2.3");
+        reflexive_display!("1.12.1438");
+        reflexive_display!("1.44.0");
+        reflexive_display!("2.44.0");
+        reflexive_display!("23459.28923.3483");
+    }
 }

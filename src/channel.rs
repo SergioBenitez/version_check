@@ -1,4 +1,5 @@
 use std::fmt;
+use std::env;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Kind {
@@ -78,12 +79,15 @@ impl Channel {
     }
 
     /// Returns `true` if this channel supports feature flags. In other words,
-    /// returns `true` if the channel is either `dev` or `nightly`.
+    /// returns `true` if the channel is either `dev`, `nightly` or the
+    /// `RUSTC_BOOTSTRAP` environment variable is set to `1`.
     ///
     /// # Example
     ///
     /// ```rust
     /// use version_check::Channel;
+    /// # // Disable `RUSTC_BOOTSTRAP` if set in the test env.
+    /// # std::env::set_var("RUSTC_BOOTSTRAP", "0");
     ///
     /// let dev = Channel::parse("1.3.0-dev").unwrap();
     /// assert!(dev.supports_features());
@@ -96,11 +100,16 @@ impl Channel {
     ///
     /// let stable = Channel::parse("1.4.0").unwrap();
     /// assert!(!stable.supports_features());
+    ///
+    /// std::env::set_var("RUSTC_BOOTSTRAP", "1"); // Enable bootstrap feature
+    /// let stable = Channel::parse("1.4.0").unwrap();
+    /// assert!(stable.supports_features());
     /// ```
     pub fn supports_features(&self) -> bool {
         match self.0 {
-            Kind::Dev | Kind::Nightly => true,
-            Kind::Beta | Kind::Stable => false
+            Kind::Beta | Kind::Stable
+            if env::var("RUSTC_BOOTSTRAP").as_ref().map(|s| &s[..]) != Ok("1") => false,
+            _ => true,
         }
     }
 

@@ -39,7 +39,10 @@ impl Version {
     /// # Example
     ///
     /// ```rust
-    /// use version_check::Version;
+    /// # use version_check::Version;
+    ///
+    /// let version = Version::parse("1").unwrap();
+    /// assert!(version.exactly("1.0.0"));
     ///
     /// let version = Version::parse("1.18.0").unwrap();
     /// assert!(version.exactly("1.18.0"));
@@ -55,21 +58,25 @@ impl Version {
     /// assert!(version.exactly("1.0.0"));
     ///
     /// assert!(Version::parse("one.two.three").is_none());
+    /// assert!(Version::parse("1.65536.2").is_none());
+    /// assert!(Version::parse("1. 2").is_none());
+    /// assert!(Version::parse("").is_none());
     /// ```
     pub fn parse(version: &str) -> Option<Version> {
-        let mut mmp: Vec<u16> = version.split('-')
+        let mut mmp = [0u16; 3];
+        for (i, s) in version
+            .split('-')
             .nth(0)
             .unwrap_or("")
             .split('.')
-            .filter_map(|s| s.parse::<u16>().ok())
-            .collect();
-
-        if mmp.is_empty() {
-            return None
-        }
-
-        while mmp.len() < 3 {
-            mmp.push(0);
+            .take(3)
+            .enumerate()
+        {
+            if let Ok(num) = s.parse::<u16>() {
+                mmp[i] = num;
+            } else {
+                return None;
+            }
         }
 
         let (maj, min, patch) = (mmp[0] as u64, mmp[1] as u64, mmp[2] as u64);
@@ -163,7 +170,7 @@ mod tests {
     use super::Version;
 
     macro_rules! check_mmp {
-        ($s:expr => ($x:expr, $y:expr, $z:expr)) => (
+        ($s:expr => ($x:expr, $y:expr, $z:expr)) => {
             if let Some(v) = Version::parse($s) {
                 if v.to_mmp() != ($x, $y, $z) {
                     panic!("{:?} ({}) didn't parse as {}.{}.{}.", $s, v, $x, $y, $z);
@@ -171,11 +178,22 @@ mod tests {
             } else {
                 panic!("{:?} didn't parse for mmp testing.", $s);
             }
-        )
+        };
+        ($s:expr => None) => {
+            if let Some(v) = Version::parse($s) {
+                let (x, y, z) = v.to_mmp();
+                panic!(
+                    "{:?} ({}) parsed as {}.{}.{} but wasn't supposed to parse at all",
+                    $s, v, x, y, z
+                );
+            }
+        };
     }
 
     #[test]
     fn test_str_to_mmp() {
+        check_mmp!("1" => (1, 0, 0));
+        check_mmp!("1.2" => (1, 2, 0));
         check_mmp!("1.18.0" => (1, 18, 0));
         check_mmp!("3.19.0" => (3, 19, 0));
         check_mmp!("1.19.0-nightly" => (1, 19, 0));
@@ -187,6 +205,13 @@ mod tests {
         check_mmp!("1.4.4-nightly (d84693b93 2017-07-09)" => (1, 4, 4));
         check_mmp!("1.58879.4478-dev" => (1, 58879, 4478));
         check_mmp!("1.58879.4478-dev (d84693b93 2017-07-09)" => (1, 58879, 4478));
+        // Malformed inputs
+        check_mmp!("1.65536.2" => None);
+        check_mmp!("-1.2.3" => None);
+        check_mmp!("1. 2" => None);
+        check_mmp!("" => None);
+        check_mmp!(" " => None);
+        check_mmp!("." => None);
     }
 
     #[test]

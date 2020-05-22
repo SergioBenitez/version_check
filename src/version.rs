@@ -5,11 +5,39 @@ use std::fmt;
 pub struct Version(u64);
 
 impl Version {
-    fn to_mmp(&self) -> (u16, u16, u16) {
+    /// Gets the major, minor, and patch versions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use version_check::Version;
+    ///
+    /// assert_eq!(Version::parse("1.35.0").unwrap().to_mmp(), (1, 35, 0));
+    /// assert_eq!(Version::parse("1.33.0").unwrap().to_mmp(), (1, 33, 0));
+    /// assert_eq!(Version::parse("1.35.1").unwrap().to_mmp(), (1, 35, 1));
+    /// assert_eq!(Version::parse("1.13.2").unwrap().to_mmp(), (1, 13, 2));
+    /// ```
+    pub fn to_mmp(&self) -> (u16, u16, u16) {
         let major = self.0 >> 32;
         let minor = (self.0 << 32) >> 48;
         let patch = (self.0 << 48) >> 48;
         (major as u16, minor as u16, patch as u16)
+    }
+
+    /// Create a `Version` from the major, minor, and patch versions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use version_check::Version;
+    ///
+    /// assert!(Version::from_mmp(1, 35, 0).exactly("1.35.0"));
+    /// assert!(Version::from_mmp(1, 33, 0).exactly("1.33.0"));
+    /// assert!(Version::from_mmp(1, 35, 1).exactly("1.35.1"));
+    /// assert!(Version::from_mmp(1, 13, 2).exactly("1.13.2"));
+    /// ```
+    pub fn from_mmp(major: u16, minor: u16, patch: u16) -> Version {
+        Version(((major as u64) << 32) | ((minor as u64) << 16) | patch as u64)
     }
 
     /// Reads the version of the running compiler. If it cannot be determined
@@ -178,7 +206,7 @@ impl fmt::Debug for Version {
 mod tests {
     use super::Version;
 
-    macro_rules! assert_mmp {
+    macro_rules! assert_to_mmp {
         // We don't use `.into::<Option<_>>` because it's not available in 1.0.
         // We don't use the message part of `assert!` for the same reason.
         ($s:expr, None) => (
@@ -189,34 +217,54 @@ mod tests {
         )
     }
 
+    macro_rules! assert_from_mmp {
+        (($x:expr, $y:expr, $z:expr) => $s:expr) => {
+            assert_eq!(Some(Version::from_mmp($x, $y, $z)), Version::parse($s));
+        };
+    }
+
     #[test]
     fn test_str_to_mmp() {
-        assert_mmp!("1", (1, 0, 0));
-        assert_mmp!("1.2", (1, 2, 0));
-        assert_mmp!("1.18.0", (1, 18, 0));
-        assert_mmp!("3.19.0", (3, 19, 0));
-        assert_mmp!("1.19.0-nightly", (1, 19, 0));
-        assert_mmp!("1.12.2349", (1, 12, 2349));
-        assert_mmp!("0.12", (0, 12, 0));
-        assert_mmp!("1.12.5", (1, 12, 5));
-        assert_mmp!("1.12", (1, 12, 0));
-        assert_mmp!("1", (1, 0, 0));
-        assert_mmp!("1.4.4-nightly (d84693b93 2017-07-09))", (1, 4, 4));
-        assert_mmp!("1.58879.4478-dev", (1, 58879, 4478));
-        assert_mmp!("1.58879.4478-dev (d84693b93 2017-07-09))", (1, 58879, 4478));
+        assert_to_mmp!("1", (1, 0, 0));
+        assert_to_mmp!("1.2", (1, 2, 0));
+        assert_to_mmp!("1.18.0", (1, 18, 0));
+        assert_to_mmp!("3.19.0", (3, 19, 0));
+        assert_to_mmp!("1.19.0-nightly", (1, 19, 0));
+        assert_to_mmp!("1.12.2349", (1, 12, 2349));
+        assert_to_mmp!("0.12", (0, 12, 0));
+        assert_to_mmp!("1.12.5", (1, 12, 5));
+        assert_to_mmp!("1.12", (1, 12, 0));
+        assert_to_mmp!("1", (1, 0, 0));
+        assert_to_mmp!("1.4.4-nightly (d84693b93 2017-07-09))", (1, 4, 4));
+        assert_to_mmp!("1.58879.4478-dev", (1, 58879, 4478));
+        assert_to_mmp!("1.58879.4478-dev (d84693b93 2017-07-09))", (1, 58879, 4478));
     }
 
     #[test]
     fn test_malformed() {
-        assert_mmp!("1.65536.2", None);
-        assert_mmp!("-1.2.3", None);
-        assert_mmp!("1. 2", None);
-        assert_mmp!("", None);
-        assert_mmp!(" ", None);
-        assert_mmp!(".", None);
-        assert_mmp!("one", None);
-        assert_mmp!("1.", None);
-        assert_mmp!("1.2.3.4.5.6", None);
+        assert_to_mmp!("1.65536.2", None);
+        assert_to_mmp!("-1.2.3", None);
+        assert_to_mmp!("1. 2", None);
+        assert_to_mmp!("", None);
+        assert_to_mmp!(" ", None);
+        assert_to_mmp!(".", None);
+        assert_to_mmp!("one", None);
+        assert_to_mmp!("1.", None);
+        assert_to_mmp!("1.2.3.4.5.6", None);
+    }
+
+    #[test]
+    fn test_from_mmp() {
+        assert_from_mmp!((1, 18, 0) => "1.18.0");
+        assert_from_mmp!((3, 19, 0) => "3.19.0");
+        assert_from_mmp!((1, 19, 0) => "1.19.0");
+        assert_from_mmp!((1, 12, 2349) => "1.12.2349");
+        assert_from_mmp!((0, 12, 0) => "0.12");
+        assert_from_mmp!((1, 12, 5) => "1.12.5");
+        assert_from_mmp!((1, 12, 0) => "1.12");
+        assert_from_mmp!((1, 0, 0) => "1");
+        assert_from_mmp!((1, 4, 4) => "1.4.4");
+        assert_from_mmp!((1, 58879, 4478) => "1.58879.4478");
     }
 
     #[test]

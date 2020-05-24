@@ -5,7 +5,7 @@ use std::fmt;
 pub struct Version(u64);
 
 impl Version {
-    /// Gets the major, minor, and patch versions.
+    /// Returns the `(major, minor, patch)` version components of `self`.
     ///
     /// # Example
     ///
@@ -24,7 +24,7 @@ impl Version {
         (major as u16, minor as u16, patch as u16)
     }
 
-    /// Create a `Version` from the major, minor, and patch versions.
+    /// Creates a `Version` from `(major, minor, patch)` version components.
     ///
     /// # Example
     ///
@@ -104,8 +104,8 @@ impl Version {
             };
         }
 
-        let (maj, min, patch) = (mmp[0] as u64, mmp[1] as u64, mmp[2] as u64);
-        Some(Version((maj << 32) | (min << 16) | patch))
+        let (maj, min, patch) = (mmp[0], mmp[1], mmp[2]);
+        Some(Version::from_mmp(maj, min, patch))
     }
 
     /// Returns `true` if `self` is greater than or equal to `version`.

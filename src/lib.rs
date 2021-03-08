@@ -93,13 +93,36 @@ fn version_and_date_from_rustc_version(s: &str) -> (Option<String>, Option<Strin
     (version.map(|s| s.to_string()), date.map(|s| s.to_string()))
 }
 
+/// Parses (version, date) as available from rustc verbose version output.
+fn version_and_date_from_rustc_verbose_version(s: &str) -> (Option<String>, Option<String>) {
+    let mut version = None;
+    let mut date = None;
+    for line in s.lines() {
+        if line.starts_with("rustc ") {
+            // Conservatively parse the "header" line
+            let (v, d) = version_and_date_from_rustc_version(line);
+            version = version.or(v);
+            date = date.or(d);
+        } else {
+            // Treat other fields as authoritative if present
+            let split = |s: &str| s.splitn(2, ": ").nth(1).map(str::to_string);
+            if line.starts_with("release: ") {
+                version = split(line);
+            } else if line.starts_with("commit-date: ") {
+                // Git info isn't available with out-of-tree rustc builds
+                date = if line.ends_with("unknown") { None } else { split(line) };
+            }
+        }
+    }
+    (version, date)
+}
+
 /// Returns (version, date) as available from `rustc --version`.
 fn get_version_and_date() -> Option<(Option<String>, Option<String>)> {
-    env::var("RUSTC").ok()
-        .and_then(|rustc| Command::new(rustc).arg("--version").output().ok())
-        .or_else(|| Command::new("rustc").arg("--version").output().ok())
+    let rustc = env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
+    Command::new(rustc).arg("--verbose").arg("--version").output().ok()
         .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|s| version_and_date_from_rustc_version(&s))
+        .map(|s| version_and_date_from_rustc_verbose_version(&s))
 }
 
 /// Reads the triple of [`Version`], [`Channel`], and [`Date`] of the installed
@@ -237,6 +260,7 @@ pub fn is_feature_flaggable() -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::version_and_date_from_rustc_version;
+    use super::version_and_date_from_rustc_verbose_version;
 
     macro_rules! check_parse {
         ($s:expr => $v:expr, $d:expr) => (
@@ -284,5 +308,90 @@ mod tests {
                       warning: something else went wrong
                       rustc 1.30.0-nightly (3bc2ca7e4 2018-09-20)"
                       => "1.30.0-nightly", Some("2018-09-20"));
+    }
+
+    #[test]
+    fn test_verbose_version_parse() {
+        let mut versions = vec![];
+
+        versions.push(("\
+rustc 1.0.0 (a59de37e9 2015-05-13) (built 2015-05-14)
+binary: rustc
+commit-hash: a59de37e99060162a2674e3ff45409ac73595c0e
+commit-date: 2015-05-13
+build-date: 2015-05-14
+host: x86_64-unknown-linux-gnu
+release: 1.0.0
+", "1.0.0", Some("2015-05-13")));
+
+        versions.push(("\
+rustc 1.50.0 (cb75ad5db 2021-02-10)
+binary: rustc
+commit-hash: cb75ad5db02783e8b0222fee363c5f63f7e2cf5b
+commit-date: 2021-02-10
+host: x86_64-unknown-linux-gnu
+release: 1.50.0
+", "1.50.0", Some("2021-02-10")));
+
+        versions.push(("\
+rustc 1.52.0-nightly (234781afe 2021-03-07)
+binary: rustc
+commit-hash: 234781afe33d3f339b002f85f948046d8476cfc9
+commit-date: 2021-03-07
+host: x86_64-unknown-linux-gnu
+release: 1.52.0-nightly
+LLVM version: 12.0.0
+", "1.52.0-nightly", Some("2021-03-07")));
+
+        versions.push(("\
+rustc 1.41.1
+binary: rustc
+commit-hash: unknown
+commit-date: unknown
+host: x86_64-unknown-linux-gnu
+release: 1.41.1
+LLVM version: 7.0
+", "1.41.1", None));
+
+        versions.push(("\
+rustc 1.49.0
+binary: rustc
+commit-hash: unknown
+commit-date: unknown
+host: x86_64-unknown-linux-gnu
+release: 1.49.0
+", "1.49.0", None));
+
+        versions.push(("\
+rustc 1.50.0 (Fedora 1.50.0-1.fc33)
+binary: rustc
+commit-hash: unknown
+commit-date: unknown
+host: x86_64-unknown-linux-gnu
+release: 1.50.0
+", "1.50.0", None));
+
+        // Now compare what we parse to expected values
+        for (s, expected_version, expected_date) in versions {
+            if let (Some(version), date) = version_and_date_from_rustc_verbose_version(s) {
+                assert_eq!(version, expected_version);
+                assert_eq!(date.as_ref().map(|d| &**d), expected_date);
+            } else {
+                panic!("{:?} didn't parse for version testing.", s);
+            }
+
+            // Throw in a few warning lines
+            let warnings = "\
+warning: invalid logging spec 'warning', ignoring it
+warning: something else went wrong
+";
+            let w = format!("{}{}", warnings, s);
+            if let (Some(version), date) = version_and_date_from_rustc_verbose_version(&w) {
+                assert_eq!(version, expected_version);
+                assert_eq!(date.as_ref().map(|d| &**d), expected_date);
+            } else {
+                panic!("{:?} didn't parse for version testing.", s);
+            }
+        }
     }
 }

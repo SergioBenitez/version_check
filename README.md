@@ -1,6 +1,6 @@
 # version\_check
 
-[![Build Status](https://travis-ci.com/SergioBenitez/version_check.svg?branch=master)](https://travis-ci.com/SergioBenitez/version_check)
+[![Build Status](https://github.com/SergioBenitez/version_check/workflows/CI/badge.svg)](https://github.com/SergioBenitez/version_check/actions)
 [![Current Crates.io Version](https://img.shields.io/crates/v/version_check.svg)](https://crates.io/crates/version_check)
 [![rustdocs on docs.rs](https://docs.rs/version_check/badge.svg)](https://docs.rs/version_check)
 

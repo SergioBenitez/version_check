@@ -1,0 +1,6 @@
+rustc 1.11.0 (9b21dcd6a 2016-08-15)
+binary: rustc
+commit-hash: 9b21dcd6a89f38e8ceccb2ede8c9027cb409f6e3
+commit-date: 2016-08-15
+host: x86_64-unknown-linux-gnu
+release: 1.11.0

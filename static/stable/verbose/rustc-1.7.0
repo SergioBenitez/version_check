@@ -1,0 +1,6 @@
+rustc 1.7.0 (a5d1e7a59 2016-02-29)
+binary: rustc
+commit-hash: a5d1e7a59a2a3413c377b003075349f854304b5e
+commit-date: 2016-02-29
+host: x86_64-unknown-linux-gnu
+release: 1.7.0

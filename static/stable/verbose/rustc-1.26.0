@@ -1,0 +1,7 @@
+rustc 1.26.0 (a77568041 2018-05-07)
+binary: rustc
+commit-hash: a7756804103447ea4e68a71ccf071e7ad8f7a03e
+commit-date: 2018-05-07
+host: x86_64-unknown-linux-gnu
+release: 1.26.0
+LLVM version: 6.0

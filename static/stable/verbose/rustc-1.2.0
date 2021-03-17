@@ -1,0 +1,6 @@
+rustc 1.2.0 (082e47636 2015-08-03)
+binary: rustc
+commit-hash: 082e4763615bdbe7b4dd3dfd6fc2210b7773edf5
+commit-date: 2015-08-03
+host: x86_64-unknown-linux-gnu
+release: 1.2.0

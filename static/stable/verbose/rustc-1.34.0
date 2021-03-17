@@ -1,0 +1,7 @@
+rustc 1.34.0 (91856ed52 2019-04-10)
+binary: rustc
+commit-hash: 91856ed52c58aa5ba66a015354d1cc69e9779bdf
+commit-date: 2019-04-10
+host: x86_64-unknown-linux-gnu
+release: 1.34.0
+LLVM version: 8.0

@@ -1,0 +1,6 @@
+rustc 1.6.0 (c30b771ad 2016-01-19)
+binary: rustc
+commit-hash: c30b771ad9d44ab84f8c88b80c25fcfde2433126
+commit-date: 2016-01-19
+host: x86_64-unknown-linux-gnu
+release: 1.6.0

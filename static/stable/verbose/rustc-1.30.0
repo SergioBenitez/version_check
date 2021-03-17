@@ -1,0 +1,7 @@
+rustc 1.30.0 (da5f414c2 2018-10-24)
+binary: rustc
+commit-hash: da5f414c2c0bfe5198934493f04c676e2b23ff2e
+commit-date: 2018-10-24
+host: x86_64-unknown-linux-gnu
+release: 1.30.0
+LLVM version: 8.0

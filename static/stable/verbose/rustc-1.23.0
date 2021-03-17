@@ -1,0 +1,7 @@
+rustc 1.23.0 (766bd11c8 2018-01-01)
+binary: rustc
+commit-hash: 766bd11c8a3c019ca53febdcd77b2215379dd67d
+commit-date: 2018-01-01
+host: x86_64-unknown-linux-gnu
+release: 1.23.0
+LLVM version: 4.0

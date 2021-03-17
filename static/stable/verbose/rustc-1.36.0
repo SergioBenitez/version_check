@@ -1,0 +1,7 @@
+rustc 1.36.0 (a53f9df32 2019-07-03)
+binary: rustc
+commit-hash: a53f9df32fbb0b5f4382caaad8f1a46f36ea887c
+commit-date: 2019-07-03
+host: x86_64-unknown-linux-gnu
+release: 1.36.0
+LLVM version: 8.0

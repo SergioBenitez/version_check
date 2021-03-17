@@ -1,0 +1,6 @@
+rustc 1.8.0 (db2939409 2016-04-11)
+binary: rustc
+commit-hash: db2939409db26ab4904372c82492cd3488e4c44e
+commit-date: 2016-04-11
+host: x86_64-unknown-linux-gnu
+release: 1.8.0

@@ -1,0 +1,6 @@
+rustc 1.5.0 (3d7cd77e4 2015-12-04)
+binary: rustc
+commit-hash: 3d7cd77e442ce34eaac8a176ae8be17669498ebc
+commit-date: 2015-12-04
+host: x86_64-unknown-linux-gnu
+release: 1.5.0

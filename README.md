@@ -63,10 +63,14 @@ documentation.
 
 ## Alternatives
 
-This crate is dead simple with no dependencies. If you need something more
-and don't care about panicking if the version cannot be obtained, or if you
-don't mind adding dependencies, see
-[rustc_version](https://crates.io/crates/rustc_version).
+This crate is dead simple with no dependencies. If you need something more and
+don't care about panicking if the version cannot be obtained, or if you don't
+mind adding dependencies, see [rustc_version]. If you'd instead prefer a feature
+detection library that works by dynamically invoking `rustc` with a
+representative code sample, see [autocfg].
+
+[rustc_version]: https://crates.io/crates/rustc_version
+[autocfg]: https://crates.io/crates/autocfg
 
 ## License
 

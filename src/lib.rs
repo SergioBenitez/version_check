@@ -6,58 +6,68 @@
 //!
 //! # Examples
 //!
-//! Set a `cfg` flag in `build.rs` if the running compiler was determined to be
-//! at least version `1.13.0`:
+//! * Set a `cfg` flag in `build.rs` if the running compiler was determined to
+//!   be at least version `1.13.0`:
 //!
-//! ```rust
-//! extern crate version_check as rustc;
+//!   ```rust
+//!   extern crate version_check as rustc;
 //!
-//! if rustc::is_min_version("1.13.0").unwrap_or(false) {
-//!     println!("cargo:rustc-cfg=question_mark_operator");
-//! }
-//! ```
+//!   if rustc::is_min_version("1.13.0").unwrap_or(false) {
+//!       println!("cargo:rustc-cfg=question_mark_operator");
+//!   }
+//!   ```
 //!
-//! See [`is_max_version`] or [`is_exact_version`] to check if the compiler
-//! is _at most_ or _exactly_ a certain version.
+//!   See [`is_max_version`] or [`is_exact_version`] to check if the compiler
+//!   is _at most_ or _exactly_ a certain version.
 //!
-//! Check that the running compiler was released on or after `2018-12-18`:
+//! * Check that the running compiler was released on or after `2018-12-18`:
 //!
-//! ```rust
-//! extern crate version_check as rustc;
+//!   ```rust
+//!   extern crate version_check as rustc;
 //!
-//! match rustc::is_min_date("2018-12-18") {
-//!     Some(true) => "Yep! It's recent!",
-//!     Some(false) => "No, it's older.",
-//!     None => "Couldn't determine the rustc version."
-//! };
-//! ```
+//!   match rustc::is_min_date("2018-12-18") {
+//!       Some(true) => "Yep! It's recent!",
+//!       Some(false) => "No, it's older.",
+//!       None => "Couldn't determine the rustc version."
+//!   };
+//!   ```
 //!
-//! See [`is_max_date`] or [`is_exact_date`] to check if the compiler was
-//! released _prior to_ or _exactly on_ a certain date.
+//!   See [`is_max_date`] or [`is_exact_date`] to check if the compiler was
+//!   released _prior to_ or _exactly on_ a certain date.
 //!
-//! Check that the running compiler supports feature flags:
+//! * Check that the running compiler supports feature flags:
 //!
-//! ```rust
-//! extern crate version_check as rustc;
+//!   ```rust
+//!   extern crate version_check as rustc;
 //!
-//! match rustc::is_feature_flaggable() {
-//!     Some(true) => "Yes! It's a dev or nightly release!",
-//!     Some(false) => "No, it's stable or beta.",
-//!     None => "Couldn't determine the rustc version."
-//! };
-//! ```
+//!   match rustc::is_feature_flaggable() {
+//!       Some(true) => "Yes! It's a dev or nightly release!",
+//!       Some(false) => "No, it's stable or beta.",
+//!       None => "Couldn't determine the rustc version."
+//!   };
+//!   ```
 //!
-//! Check that the running compiler is on the stable channel:
+//! * Check that the running compiler supports a specific feature:
 //!
-//! ```rust
-//! extern crate version_check as rustc;
+//!   ```rust
+//!   extern crate version_check as rustc;
 //!
-//! match rustc::Channel::read() {
-//!     Some(c) if c.is_stable() => format!("Yes! It's stable."),
-//!     Some(c) => format!("No, the channel {} is not stable.", c),
-//!     None => format!("Couldn't determine the rustc version.")
-//! };
-//! ```
+//!   if let Some(true) = rustc::supports_feature("doc_cfg") {
+//!      println!("cargo:rustc-cfg=has_doc_cfg");
+//!   }
+//!   ```
+//!
+//! * Check that the running compiler is on the stable channel:
+//!
+//!   ```rust
+//!   extern crate version_check as rustc;
+//!
+//!   match rustc::Channel::read() {
+//!       Some(c) if c.is_stable() => format!("Yes! It's stable."),
+//!       Some(c) => format!("No, the channel {} is not stable.", c),
+//!       None => format!("Couldn't determine the rustc version.")
+//!   };
+//!   ```
 //!
 //! To interact with the version, release date, and release channel as structs,
 //! use [`Version`], [`Date`], and [`Channel`], respectively. The [`triple()`]
@@ -248,10 +258,62 @@ pub fn is_exact_version(version: &str) -> Option<bool> {
 ///
 /// In other words, if the channel is either "nightly" or "dev".
 ///
+/// Note that support for specific `rustc` features can be enabled or disabled
+/// via the `allow-features` compiler flag, which this function _does not_
+/// check. That is, this function _does not_ check whether a _specific_ feature
+/// is supported, but instead whether features are supported at all. To check
+/// for support for a specific feature, use [`supports_feature()`].
+///
 /// If the version could not be determined, returns `None`. Otherwise returns
 /// `true` if the running version supports feature flags and `false` otherwise.
 pub fn is_feature_flaggable() -> Option<bool> {
     Channel::read().map(|c| c.supports_features())
+}
+
+/// Checks whether the running or installed `rustc` supports `feature`.
+///
+/// Returns _true_ _iff_ [`is_feature_flaggable()`] returns `true` _and_ the
+/// feature is not disabled via exclusion in `allow-features` via `RUSTFLAGS` or
+/// `CARGO_ENCODED_RUSTFLAGS`. If the version could not be determined, returns
+/// `None`.
+///
+/// # Example
+///
+/// ```rust
+/// use version_check as rustc;
+///
+/// if let Some(true) = rustc::supports_feature("doc_cfg") {
+///    println!("cargo:rustc-cfg=has_doc_cfg");
+/// }
+/// ```
+pub fn supports_feature(feature: &str) -> Option<bool> {
+    match is_feature_flaggable() {
+        Some(true) => { /* continue */ }
+        Some(false) => return Some(false),
+        None => return None,
+    }
+
+    let env_flags = env::var_os("CARGO_ENCODED_RUSTFLAGS")
+        .map(|flags| (flags, '\x1f'))
+        .or_else(|| env::var_os("RUSTFLAGS").map(|flags| (flags, ' ')));
+
+    if let Some((flags, delim)) = env_flags {
+        const ALLOW_FEATURES: &'static str = "allow-features=";
+
+        let rustflags = flags.to_string_lossy();
+        let allow_features = rustflags.split(delim)
+            .map(|flag| flag.trim_left_matches("-Z").trim())
+            .filter(|flag| flag.starts_with(ALLOW_FEATURES))
+            .map(|flag| &flag[ALLOW_FEATURES.len()..]);
+
+        if let Some(allow_features) = allow_features.last() {
+            return Some(allow_features.split(',').any(|f| f.trim() == feature));
+        }
+    }
+
+    // If there are no `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` or they don't
+    // contain an `allow-features` flag, assume compiler allows all features.
+    Some(true)
 }
 
 #[cfg(test)]

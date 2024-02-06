@@ -57,6 +57,15 @@
 //!   }
 //!   ```
 //!
+//!   Note that it is generally a bad idea to automatically use a feature just
+//!   because it is supported. Nightly features are unstable by their very nature,
+//!   so a crate that automatically makes use of nightly features is prone to
+//!   breakage: if the feature changes in rustc in an incompatible way, then a
+//!   crate that automatically uses the feature will fail to build for everyone
+//!   using nightly! The recommended practice is to make using nightly features
+//!   opt-in (e.g. via a crate feature), so that people only experience broken
+//!   builds when they explicitly asked for a nightly feature.
+//!
 //! * Check that the running compiler is on the stable channel:
 //!
 //!   ```rust
@@ -276,6 +285,15 @@ pub fn is_feature_flaggable() -> Option<bool> {
 /// feature is not disabled via exclusion in `allow-features` via `RUSTFLAGS` or
 /// `CARGO_ENCODED_RUSTFLAGS`. If the version could not be determined, returns
 /// `None`.
+///
+/// Note that it is generally a bad idea to automatically use a feature just
+/// because it is supported. Nightly features are unstable by their very nature,
+/// so a crate that automatically makes use of nightly features is prone to
+/// breakage: if the feature changes in rustc in an incompatible way, then a
+/// crate that automatically uses the feature will fail to build for everyone
+/// using nightly! The recommended practice is to make using nightly features
+/// opt-in (e.g. via a crate feature), so that people only experience broken
+/// builds when they explicitly asked for a nightly feature.
 ///
 /// # Example
 ///

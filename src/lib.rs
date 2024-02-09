@@ -47,6 +47,15 @@
 //!   };
 //!   ```
 //!
+//!   Note that it is generally a bad idea to automatically use a feature just
+//!   because it is supported. Nightly features are unstable by their very nature,
+//!   so a crate that automatically makes use of nightly features is prone to
+//!   breakage: if the feature changes in rustc in an incompatible way, then a
+//!   crate that automatically uses the feature will fail to build for everyone
+//!   using nightly! The recommended practice is to make using nightly features
+//!   opt-in (e.g. via a crate feature), so that people only experience broken
+//!   builds when they explicitly asked for a nightly feature.
+//!
 //! * Check that the running compiler supports a specific feature:
 //!
 //!   ```rust
@@ -56,6 +65,9 @@
 //!      println!("cargo:rustc-cfg=has_doc_cfg");
 //!   }
 //!   ```
+//!
+//!   The note above about automatic feature detection also applies here:
+//!   it is almost always a bad idea to do this.
 //!
 //! * Check that the running compiler is on the stable channel:
 //!
@@ -264,6 +276,15 @@ pub fn is_exact_version(version: &str) -> Option<bool> {
 /// is supported, but instead whether features are supported at all. To check
 /// for support for a specific feature, use [`supports_feature()`].
 ///
+/// Note that it is generally a bad idea to automatically use a feature just
+/// because it is supported. Nightly features are unstable by their very nature,
+/// so a crate that automatically makes use of nightly features is prone to
+/// breakage: if the feature changes in rustc in an incompatible way, then a
+/// crate that automatically uses the feature will fail to build for everyone
+/// using nightly! The recommended practice is to make using nightly features
+/// opt-in (e.g. via a crate feature), so that people only experience broken
+/// builds when they explicitly asked for a nightly feature.
+///
 /// If the version could not be determined, returns `None`. Otherwise returns
 /// `true` if the running version supports feature flags and `false` otherwise.
 pub fn is_feature_flaggable() -> Option<bool> {
@@ -276,6 +297,15 @@ pub fn is_feature_flaggable() -> Option<bool> {
 /// feature is not disabled via exclusion in `allow-features` via `RUSTFLAGS` or
 /// `CARGO_ENCODED_RUSTFLAGS`. If the version could not be determined, returns
 /// `None`.
+///
+/// Note that it is generally a bad idea to automatically use a feature just
+/// because it is supported. Nightly features are unstable by their very nature,
+/// so a crate that automatically makes use of nightly features is prone to
+/// breakage: if the feature changes in rustc in an incompatible way, then a
+/// crate that automatically uses the feature will fail to build for everyone
+/// using nightly! The recommended practice is to make using nightly features
+/// opt-in (e.g. via a crate feature), so that people only experience broken
+/// builds when they explicitly asked for a nightly feature.
 ///
 /// # Example
 ///

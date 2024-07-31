@@ -303,6 +303,30 @@ pub fn is_feature_flaggable() -> Option<bool> {
     Channel::read().map(|c| c.supports_features())
 }
 
+fn get_allow_features() -> Option<Vec<String>> {
+    let (flags, delim) = env::var_os("CARGO_ENCODED_RUSTFLAGS")
+        .map(|flags| (flags, '\x1f'))
+        .or_else(|| env::var_os("RUSTFLAGS").map(|flags| (flags, ' ')))?;
+
+    const ALLOW_FEATURES: &str = "allow-features=";
+
+    let rustflags = flags.to_string_lossy();
+    let allow_features = rustflags.split(delim)
+        .map(|flag| flag.trim_left_matches("-Z").trim())
+        .filter(|flag| flag.starts_with(ALLOW_FEATURES))
+        .map(|flag| &flag[ALLOW_FEATURES.len()..]);
+
+    let allow_features = allow_features.last()?;
+
+    Some(
+        allow_features
+            .split(',')
+            .map(|f| f.trim().to_owned())
+            .filter(|f| !f.is_empty())
+            .collect()
+    )
+}
+
 /// Checks whether the running or installed `rustc` supports `feature`.
 ///
 /// **Please see the note on [feature detection](crate#feature-detection).**
@@ -328,22 +352,8 @@ pub fn supports_feature(feature: &str) -> Option<bool> {
         None => return None,
     }
 
-    let env_flags = env::var_os("CARGO_ENCODED_RUSTFLAGS")
-        .map(|flags| (flags, '\x1f'))
-        .or_else(|| env::var_os("RUSTFLAGS").map(|flags| (flags, ' ')));
-
-    if let Some((flags, delim)) = env_flags {
-        const ALLOW_FEATURES: &'static str = "allow-features=";
-
-        let rustflags = flags.to_string_lossy();
-        let allow_features = rustflags.split(delim)
-            .map(|flag| flag.trim_left_matches("-Z").trim())
-            .filter(|flag| flag.starts_with(ALLOW_FEATURES))
-            .map(|flag| &flag[ALLOW_FEATURES.len()..]);
-
-        if let Some(allow_features) = allow_features.last() {
-            return Some(allow_features.split(',').any(|f| f.trim() == feature));
-        }
+    if let Some(allow_features) = get_allow_features() {
+        return Some(allow_features.iter().any(|f| f == feature));
     }
 
     // If there are no `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` or they don't

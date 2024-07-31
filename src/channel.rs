@@ -102,7 +102,9 @@ impl Channel {
     /// ```
     pub fn supports_features(&self) -> bool {
         match self.0 {
-            Kind::Dev | Kind::Nightly => true,
+            Kind::Dev | Kind::Nightly => {
+                crate::get_allow_features().map_or(true, |f| !f.is_empty())
+            }
             Kind::Beta | Kind::Stable => false
         }
     }

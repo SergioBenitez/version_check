@@ -7,7 +7,7 @@ documentation = "https://docs.rs/version_check/"
 repository = "https://github.com/SergioBenitez/version_check"
 readme = "README.md"
 keywords = ["version", "rustc", "minimum", "check"]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 exclude = ["static"]
 
 [dependencies]
